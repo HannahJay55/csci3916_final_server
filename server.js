@@ -96,12 +96,19 @@ app.get("/movies/:id?", authJwtController.isAuthenticated, (req, res) => {
         res = res.type(req.get('Content-Type'));
     }
     if (req.params.id) {
+        try {
+            var objectId = ObjectId(req.params.id);
+        } catch (err) {
+            res.json({success: false, msg: 'Invalid movie ID'});
+            return;
+        }
+
         if (req.query.reviews) { // reviews=true in query parameter
             console.log(req.params.id);
             Movie.aggregate([
                 /**/
                 {
-                    $match: { _id: ObjectId(req.params.id) } // replace orderId with the actual order id
+                    $match: { _id: objectId } // replace orderId with the actual order id
                 },
                 {
                     $lookup: {
