@@ -49,7 +49,7 @@ router.post('/signup', function(req, res) {
         res.json({success: false, msg: 'Please include both username and password to signup.'})
     } else {
         var user = new User();
-        user.name = req.body.name;
+        //user.name = req.body.name;
         user.username = req.body.username;
         user.password = req.body.password;
 
@@ -117,6 +117,11 @@ app.get("/movies/:id?", authJwtController.isAuthenticated, (req, res) => {
                         foreignField: "movieId", // field in the items collection
                         as: "reviewDetails" // output array where the joined items will be placed
                     }
+                },
+                {
+                    $addFields: {
+                        avgRating: { $avg: '$reviewDetails.rating' }
+                    }
                 }
             ]).exec(function(err, result) {
                 if (err) {
@@ -136,12 +141,40 @@ app.get("/movies/:id?", authJwtController.isAuthenticated, (req, res) => {
             });
         }
     } else { // gets all movies if no Id specified
-        Movie.find({}, function(err, movies) {
-            if (err) {
-                return res.send(err);
-            }
-            res.send(movies);
-        });
+        if (req.query.reviews) { // reviews=true in query parameter
+            Movie.aggregate([
+                {
+                    $lookup: {
+                        from: Review.collection.name, // name of the foreign collection
+                        localField: "_id", // field in the orders collection
+                        foreignField: "movieId", // field in the items collection
+                        as: "reviewDetails" // output array where the joined items will be placed
+                    }
+                },
+                {
+                    $addFields: {
+                        avgRating: { $avg: '$reviewDetails.rating' }
+                    }
+                },
+                {
+                    $sort: { avgRating: -1 }
+                }
+            ]).exec(function(err, result) {
+                if (err) {
+                    res.send(err); // handle error
+                } else {
+                    console.log(result);
+                    res.send(result);
+                }
+            });
+        } else {
+            Movie.find({}, function(err, movies) {
+                if (err) {
+                    return res.send(err);
+                }
+                res.send(movies);
+            });
+        }
     }
 });
 
@@ -242,6 +275,7 @@ app.post("/reviews", authJwtController.isAuthenticated, (req, res) => { //save m
     console.log(req.params);
     if (!req.body.movieId || !req.body.username || !req.body.review || req.body.rating < 0 || req.body.rating > 5) {
         o.body = {success: false, msg: 'Save failed, insufficient information.'};
+        res.json(o);
     } else {
         var newReview = new Review();
         newReview.movieId = req.body.movieId;
