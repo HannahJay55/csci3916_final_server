@@ -14,7 +14,10 @@ var cors = require('cors');
 var User = require('./Users');
 var Movie = require('./Movies');
 var Review = require('./Reviews');
+var Video = require('./Videos');
+var Comment = require('./Comments')
 var mongoose = require('mongoose');
+
 const ObjectId = mongoose.Types.ObjectId;
 
 var app = express();
@@ -88,6 +91,74 @@ router.post('/signin', function (req, res) {
         })
     })
 });
+
+
+app.post('/video', (req, res) => {
+    const dbVideos = req.body
+    Video.create(dbVideos, (err, data) => {
+        if(err)
+            res.status(500).send(err)
+        else
+            res.status(201).send(data)
+    })
+})
+
+app.get('/video', (req, res) => {
+    Video.find((err, data) => {
+        if(err) {
+            res.status(500).send(err)
+        } else {
+            res.status(200).send(data)
+        }
+    })
+})
+
+app.post('/comments/', (req, res) => {
+    const newComment = req.body;
+
+    if (req.get('Content-Type')) {
+        res = res.type(req.get('Content-Type'));
+    }
+    try {
+        var objectId = ObjectId(req.params.id);
+    } catch (err) {
+        res.json({success: false, msg: 'Invalid video ID'});
+        return;
+    }
+
+    Comment.create(newComment, (err, data) => {
+        if(err)
+            res.status(500).json({success: false, msg: err})
+        else
+            res.status(201).json({success: true, msg: 'Comment posted', data: data})
+    });
+})
+
+app.get('/comments/:id', (req, res) => {
+    res = res.status(200);
+    var o = getJSONObjectForMovieRequirement(req);
+
+    if (req.get('Content-Type')) {
+        res = res.type(req.get('Content-Type'));
+    }
+    try {
+        var objectId = ObjectId(req.params.id);
+    } catch (err) {
+        res.json({success: false, msg: 'Invalid video ID'});
+        return;
+    }
+
+    console.log("getting comment with id ", req.params.id);
+    Comment.find({videoId: req.params.id}, function(err, comments) {
+        if (err) {
+            res.send(err);
+        } else {
+            res.send(comments);
+        }
+    });
+});
+
+
 app.get("/movies/:id?", authJwtController.isAuthenticated, (req, res) => {
     res = res.status(200);
     var o = getJSONObjectForMovieRequirement(req);
